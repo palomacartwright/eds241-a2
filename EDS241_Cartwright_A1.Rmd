@@ -1,0 +1,120 @@
+---
+title: "EDS241: Assignment 2"
+author: "Paloma Cartwright"
+date: '`r Sys.Date()`'
+output: 
+  pdf_document:
+    toc: false
+header-includes:
+  - \setlength{\parindent}{1em}
+  - \usepackage{float}
+--- 
+
+``` {r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+# set default chunk options
+knitr::opts_chunk$set(fig.width = 6, fig.height = 3, 
+                      echo = TRUE, message = FALSE, warning = FALSE)
+
+# load packages
+librarian::shelf("stargazer", "here", "tidyr", "tidyverse", "dplyr","stringr", "janitor", "huxtable",
+           "cowplot", "ggplot2", "tinytex", "datasets", "tibble", "readxl", "estimatr", "patchwork",
+           "car")
+
+```
+
+\noindent The goal of this assignment is to provide a simple test of whether the effects of air quality regulations are the same across locations with different racial mix. To this end you will test if the NOx Budget Program, a cap-and-trade market for nitrogen oxides (NOx) emissions from power plants lead to similar effects in counties that are predominantly white versus counties that are predominantly African American. The data are a subset of data sample I used in the following paper: https://olivierdeschenes.weebly.com/uploads/1/3/5/0/135068654/defensive-investmentsand-the-demans-for-air-quality.pdf. You can also get more information on the NOx Budget Program, here: https://www.epa.gov/airmarkets/nox-budget-trading-program
+
+\noindent The data included in the file NBP.xls, which is available on Gauchospace, are: fips (fips code identifying each county), NBP (indicator = 1 if the county was regulated under the NOx Budget Program), PctBlack (fraction of the county population that is African American), and Dnox_masstons (change in annual NOx emissions from all power plants in a county between 2000 and 2008 (in tons)). Note that the NBP market was in effect in 212 of the 485 counties in the sample from 2003 to 2008, so the 2008-2000 change give us a sense of the program’s effect on emissions. If emissions of NOx from power plants declined in a county, then Dnox_masstons should be negative.
+
+## Load in the data 
+
+```{r}
+
+data <- read_excel(here("NBP.xls")) %>% 
+  clean_names()
+
+```
+
+
+# (a) Make a histogram depicting the distribution of `Dnox_masstons`.
+
+```{r, fig.cap = "Enter a figure caption here"}
+dnox_graph <- ggplot(data = data, aes(x = dnox_masstons)) +
+  geom_histogram(binwidth = 2) +
+  labs(title = "Change in NOx emissions in tons between 2000 and 2008", 
+       y = "Frequency", 
+       x = "Change in NOx Emissions (tons)")
+
+dnox_graph
+```
+
+# (b) Create an indicator = 1 if the county has PctBlack above the sample median, and = 0 otherwise (in the rest of the assignment, I refer to this variable as ‘D’). What is the average of PctBlack for counties above the median, i.e. counties for which D=1?
+
+```{r}
+med <- median(data$pct_black)
+
+
+data <- data %>% 
+  mutate(d = case_when(
+    pct_black > med ~ 1,
+    pct_black <= med ~ 0
+  ))
+
+
+avg_pct_black <- data %>% 
+  filter(d == 1) %>% 
+  summarize(mean(pct_black))
+
+```
+
+The average fraction of the country population that is African American and above the median is `r avg_pct_black[[1]]`.
+
+# (c) Estimate a regression of Dnox_masstons on NBP. Interpret the estimated intercept and the coefficient on NBP.
+
+```{r}
+
+nox_reg <- lm_robust(dnox_masstons ~ nbp, data = data)
+
+huxreg(nox_reg)
+
+```
+
+On average, the change in NOx emissions in tons between 2000 and 2008 without the impact of NOx budget regulation is `r nox_reg$coefficients[1]`. If a county was regulated by the NOx budget then there was on average a `r nox_reg$coefficients[2]` decrease in the change in emissions between 2000 and 2008. 
+
+
+# (d) Create an interaction between the variables NBP and D. Estimate a regression of Dnox_masstons on NBP, D, and this interaction. Interpret each estimated regression coefficient, including the intercept.
+
+```{r}
+
+nox_d_nbp <- lm_robust(dnox_masstons ~ nbp + d + nbp:d, data = data)
+huxreg(nox_d_nbp)
+
+```
+
+The intercept is the average change in NOx emissions between 2000 and 2008 where the county is not under NOx budget regulation or the percentage of African Americans in that county is lower than the median. This value for this is `r nox_d_nbp$coefficients[1]`.
+
+On average, the regression coefficient `r nox_d_nbp$coefficients[2]` is the decrease in change of NOx emissions in tons between 2000 and 2008 if the county was under NOx budget regulation, controlling for the impact of whether the percentage of African Americans in that county is higher than the median and for the combination of both of these effects. 
+
+On average, the regression coefficient `r nox_d_nbp$coefficients[3]` is the decrease in change of NOx emissions in tons between 2000 and 2008 if the percentage of African Americans in that county is higher than the median, controlling for whether that county was under NOx budget regulation (not participating) and for the combination of both of these effects. 
+
+On average, the regression coefficient `r nox_d_nbp$coefficients[4]` is the change in the change of NOx emissions between 2000 and 2008 when the percentage of African Americans in a county is higher than the median, the county was under a NOx budget regulation (participating) and the county has the combination of both of these variables is in place. 
+
+
+# (e) What is the predicted Dnox_masstons in a county that was not regulated under NBP and where PctBlack is above the sample median (i.e., where D=1)? Report the 95% confidence interval for this prediction. Make sure to use “heteroskedasticity-robust” standard errors.
+
+```{r}
+# predict dnox_masstons when nbp = 0 and d = 1
+
+predict_emission <- data.frame(nbp = 0, d = 1)
+emis_pred <- predict(nox_d_nbp, newdata = predict_emission, se.fit = T, interval = 'confidence')
+
+emis_pred
+
+```
+
+The predicted `Dnox_masstons` in a country not regulated under NBP and where PcTBlack is above the sample median was `r emis_pred$fit[[1]]`. The 95% confidence interval is [`r emis_pred$fit[[2]]`, `r emis_pred$fit[[3]]`]. 
+
+
+
+
