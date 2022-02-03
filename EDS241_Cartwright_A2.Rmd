@@ -39,7 +39,7 @@ data <- read_excel(here("NBP.xls")) %>%
 
 # (a) Make a histogram depicting the distribution of `Dnox_masstons`.
 
-```{r, fig.cap = "Enter a figure caption here"}
+```{r, fig.cap = "This graph shows the distribution of the change in Nitrox emissions in tons between 2000 and 2008 with the majority of the changes being from 0 to -20."}
 dnox_graph <- ggplot(data = data, aes(x = dnox_masstons)) +
   geom_histogram(binwidth = 2) +
   labs(title = "Change in NOx emissions in tons between 2000 and 2008", 
@@ -68,7 +68,7 @@ avg_pct_black <- data %>%
 
 ```
 
-The average fraction of the country population that is African American and above the median is `r avg_pct_black[[1]]`.
+The percentage of counties whose percent of African Americans above the median percentage in all counties is `r avg_pct_black[[1]]`%.
 
 # (c) Estimate a regression of Dnox_masstons on NBP. Interpret the estimated intercept and the coefficient on NBP.
 
@@ -113,7 +113,7 @@ emis_pred
 
 ```
 
-The predicted `Dnox_masstons` in a country not regulated under NBP and where PcTBlack is above the sample median was `r emis_pred$fit[[1]]`. The 95% confidence interval is [`r emis_pred$fit[[2]]`, `r emis_pred$fit[[3]]`]. 
+The predicted `Dnox_masstons` in a country not regulated under `nbp` and where `PctBlack` is above the sample median was `r emis_pred$fit[[1]]`. The 95% confidence interval is [`r emis_pred$fit[[2]]`, `r emis_pred$fit[[3]]`]. 
 
 
 
